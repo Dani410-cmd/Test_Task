@@ -4,7 +4,6 @@ import math
 import cv2
 from ultralytics import YOLO
 
-
 # =========================
 # SETTINGS
 # =========================
@@ -13,15 +12,14 @@ from ultralytics import YOLO
 SOURCE_VIDEO = Path.home() / "Downloads" / "vehicle-counting.mp4"
 OUTPUT_VIDEO = Path.home() / "Movies" / "vehicle-counting-output.mp4"
 
-# Модель (лучше для плотного трафика)
-# n = быстро, но часто теряет; s = хороший старт; m = ещё стабильнее, но медленнее
+# Модель
 MODEL = "yolov8s.pt"
 
-# Линия подсчёта (твои точки)
+# Линия подсчёта
 LINE_START = (475, 1822)
 LINE_END   = (1731, 1822)
 
-# Полоса вокруг линии (px): больше = легче засчитывать касание
+# Полоса вокруг линии (px)
 LINE_BAND_PX = 35
 
 # Классы транспорта (COCO): car=2, motorcycle=3, bus=5, truck=7
@@ -31,7 +29,7 @@ VEHICLE_CLASSES = {2, 3, 5, 7}
 CONF = 0.18
 IOU = 0.55
 
-# Улучшение стабильности (можно 960/1280). Больше = точнее, но медленнее.
+# Улучшение стабильности
 IMGSZ = 1280
 
 # Толщина/видимость
@@ -41,14 +39,12 @@ TEXT_THICKNESS = 6
 ID_FONT_SCALE = 0.9
 COUNT_FONT_SCALE = 1.5
 
-# Считаем ТОЛЬКО встречку: по твоему описанию едет вниз по кадру (y растёт)
+# Считаем ТОЛЬКО встречку
 COUNT_DIRECTION = "down"
 DIR_MIN_PX = 2  # минимальный сдвиг, чтобы шум не считался
 
 # Трекер: BoT-SORT часто стабильнее на плотных сценах, чем ByteTrack
-# (если вдруг будет ошибка, поставь TRACKER = None и строку tracker убери ниже)
 TRACKER = "botsort.yaml"
-
 
 # =========================
 # HELPERS
@@ -95,7 +91,6 @@ def direction_ok(dx, dy, mode: str, min_px: int) -> bool:
         return dx < -min_px
     return True
 
-
 # =========================
 # MAIN
 # =========================
@@ -131,8 +126,6 @@ def main():
             break
 
         # TRACKING: даёт боксы + устойчивые ID
-        # ВАЖНО: мы НЕ фильтруем правые машины — мы рисуем всех,
-        # но при подсчёте применяем фильтр направления.
         if TRACKER:
             results = model.track(
                 frame, persist=True, conf=CONF, iou=IOU, imgsz=IMGSZ,
@@ -146,7 +139,7 @@ def main():
 
         r = results[0]
 
-        # линия подсчёта (толстая)
+        # линия подсчёта
         cv2.line(frame, LINE_START, LINE_END, (0, 255, 255), LINE_THICKNESS)
 
         # если есть боксы и ID
@@ -171,7 +164,7 @@ def main():
                     (0, 255, 0), TEXT_THICKNESS
                 )
 
-                # --- 2) ТОЧКА ДЛЯ ПОДСЧЁТА: низ бокса (чтобы фуры считались) ---
+                # --- 2) ТОЧКА ДЛЯ ПОДСЧЁТА: низ бокса ---
                 px = int((x1 + x2) / 2)
                 py = int(y2)
                 p = (px, py)
@@ -187,8 +180,6 @@ def main():
                 cur_side = side_of_line(p, LINE_START, LINE_END)
                 dist = point_line_distance_px(p, LINE_START, LINE_END)
 
-                # --- 3) ПОДСЧЁТ ТОЛЬКО ВСТРЕЧКИ ---
-                # Встречка у тебя "вниз" по кадру: dy > 0.
                 if tid not in counted_ids and tid in prev_side:
                     ps = prev_side[tid]
 
@@ -201,7 +192,7 @@ def main():
 
                 prev_side[tid] = cur_side
 
-        # счётчик возле линии (толстый)
+        # счётчик возле линии
         cv2.putText(
             frame, f"Total (oncoming): {total_count}",
             label_pos, cv2.FONT_HERSHEY_SIMPLEX,
